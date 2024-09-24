@@ -1,0 +1,22 @@
+diff --git a/client/sub_client.c b/client/sub_client.c
+index 4ff3bf9a..42f6726b 100644
+--- a/client/sub_client.c
++++ b/client/sub_client.c
+@@ -38,6 +38,7 @@ Contributors:
+ #include "client_shared.h"
+ #include "sub_client_output.h"
+ 
++int total_count = 0;
+ struct mosq_config cfg;
+ bool process_messages = true;
+ int msg_count = 0;
+@@ -95,7 +96,8 @@ static void my_message_callback(struct mosquitto *mosq, void *obj, const struct
+ 		mosquitto_publish(mosq, &last_mid, message->topic, 0, NULL, 1, true);
+ 	}
+ 
+-	print_message(&cfg, message, properties);
++	// print_message(&cfg, message, properties);
++	printf("%d ", total_count++);
+ 	if(ferror(stdout)){
+ 		mosquitto_disconnect_v5(mosq, 0, cfg.disconnect_props);
+ 	}
