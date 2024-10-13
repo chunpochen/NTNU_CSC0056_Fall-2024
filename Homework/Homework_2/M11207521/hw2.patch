@@ -1,0 +1,441 @@
+diff --git a/client/.gitignore b/client/.gitignore
+new file mode 100644
+index 00000000..e301c6fd
+--- /dev/null
++++ b/client/.gitignore
+@@ -0,0 +1,11 @@
++local_broker.txt
++public_broker.txt
++../hw1.patch
++../cscope.po.out
++../cscope.out
++../cscope.in.out
++timed_sub
++timed_pub
++greet_server
++greet_client
++.greet_server.c.swp
+diff --git a/client/CDF.py b/client/CDF.py
+new file mode 100644
+index 00000000..5459682d
+--- /dev/null
++++ b/client/CDF.py
+@@ -0,0 +1,42 @@
++import matplotlib.pyplot as plt
++import numpy as np
++
++def load_data(filename):
++    data = []
++    with open(filename, 'r') as file:
++        for line in file:
++            if 'latency' in line:
++                latency_value = line.replace("latency = ", "").replace(" μ", "").strip()
++                data.append(float(latency_value))
++    return data
++
++local_data = load_data('local_broker.txt')
++public_data = load_data('public_broker.txt')
++
++# local's CDF
++local_cdf_x = np.sort(local_data)
++local_cdf_y = (np.arange(len(local_cdf_x)) + 1) / len(local_cdf_x)
++
++# broker's CDF
++public_cdf_x = np.sort(public_data)
++public_cdf_y = (np.arange(len(public_cdf_x)) + 1) / len(public_cdf_x)
++
++fig1, ax1 = plt.subplots(layout='constrained')
++ax1.plot(local_cdf_x, local_cdf_y, marker='.', color='seagreen')
++ax1.set_ylim(0, 1.05)
++ax1.set_xlabel('Latency (microseconds)')
++ax1.set_ylabel('CDF')
++ax1.set_title('Local Broker')
++ax1.ticklabel_format(style='plain')
++plt.savefig("CDF_plot_local.png")
++plt.show()
++
++fig2, ax2 = plt.subplots(layout='constrained')
++ax2.plot(public_cdf_x, public_cdf_y, marker='x', color='salmon')
++ax2.set_ylim(0, 1.05)
++ax2.set_xlabel('Latency (microseconds)')
++ax2.set_ylabel('CDF')
++ax2.set_title('Public Broker')
++ax2.ticklabel_format(style='plain')
++plt.savefig("CDF_plot_public.png")
++plt.show()
+\ No newline at end of file
+diff --git a/client/Makefile b/client/Makefile
+index cc406b7d..39cbc455 100644
+--- a/client/Makefile
++++ b/client/Makefile
+@@ -14,12 +14,18 @@ ALL_DEPS:= static_pub static_sub static_rr
+ endif
+ endif
+
+-all : ${ALL_DEPS}
++all : ${ALL_DEPS} greet_server greet_client
+
+ static : static_pub static_sub static_rr
+ 	# This makes mosquitto_pub/sub/rr versions that are statically linked with
+ 	# libmosquitto only.
+
++greet_server: greet_server.c
++	gcc greet_server.c -o greet_server -lmosquitto
++
++greet_client: greet_client.c
++	gcc greet_client.c -o greet_client -lmosquitto
++
+ static_pub : pub_client.o pub_shared.o client_props.o client_shared.o ../lib/libmosquitto.a
+ 	${CROSS_COMPILE}${CC} $^ -o mosquitto_pub ${CLIENT_LDFLAGS} ${STATIC_LIB_DEPS} ${CLIENT_STATIC_LDADD}
+
+diff --git a/client/greet_client.c b/client/greet_client.c
+new file mode 100644
+index 00000000..106dd2eb
+--- /dev/null
++++ b/client/greet_client.c
+@@ -0,0 +1,36 @@
++#include <stdio.h>
++#include <string.h>
++#include <mosquitto.h>
++
++bool msg_received = false;
++
++void message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *msg) {
++    if (msg->payloadlen) {
++        printf("%s\n", (char *)msg->payload);
++        msg_received = true;
++    }
++}
++
++int main(int argc, char *argv[])
++{
++    /* Check the user provided a name as a command-line */
++    if (argc < 2) {
++        printf("Usage: %s <name>\n", argv[0]);
++        return 1;
++    }
++    mosquitto_lib_init();
++    struct mosquitto *mosq = mosquitto_new("m11207521", true, NULL);
++    mosquitto_message_callback_set(mosq, message);
++    /* Connect local server */
++    mosquitto_connect(mosq, "localhost", 1883, 60);
++    /* Subscrible to the 'fromServer' topic */
++    mosquitto_subscribe(mosq, NULL, "fromServer", 0);
++    mosquitto_publish(mosq, NULL, "toServer", strlen(argv[1]), argv[1], 0, false);
++
++    while (!msg_received)
++        mosquitto_loop(mosq, -1, 1);
++
++    mosquitto_destroy(mosq);
++    mosquitto_lib_cleanup();
++    return 0;
++}
+\ No newline at end of file
+diff --git a/client/greet_server.c b/client/greet_server.c
+new file mode 100644
+index 00000000..4df79414
+--- /dev/null
++++ b/client/greet_server.c
+@@ -0,0 +1,38 @@
++#include <stdio.h>
++#include <string.h>
++#include <mosquitto.h>
++
++/* Callback function called when a message is received on a subscribed topic */
++void message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *msg)
++{
++	char greet[128];
++	printf("Topic -> %s: %s\n", msg->topic, (char *)msg->payload);
++
++	/* Check the received messge is on the 'toServer' topic */
++	if(strcmp(msg->topic, "toServer") == 0) {
++		snprintf(greet, sizeof(greet), "Hello, %s", (char *)msg->payload);
++		mosquitto_publish(mosq, NULL, "fromServer", strlen(greet), greet, 0, false);
++	}
++}
++int main()
++{
++	mosquitto_lib_init();
++
++	/* Create a new mosquitto client instance for the server */
++	struct mosquitto *mosq = mosquitto_new("greet_server", true, NULL);
++	mosquitto_message_callback_set(mosq, message);
++
++	/* Connect local server */
++	mosquitto_connect(mosq, "localhost", 1883, 60);
++	/* Subscribe the server to the 'toServer' */
++	mosquitto_subscribe(mosq, NULL, "toServer", 0);
++
++	while(1) {
++		mosquitto_loop(mosq, -1, 1);
++	}
++
++	mosquitto_destroy(mosq);
++	mosquitto_lib_cleanup();
++
++	return 0;
++}
+diff --git a/client/hw2.patch b/client/hw2.patch
+new file mode 100644
+index 00000000..44266d79
+--- /dev/null
++++ b/client/hw2.patch
+@@ -0,0 +1,144 @@
++diff --git a/client/.gitignore b/client/.gitignore
++new file mode 100644
++index 00000000..e301c6fd
++--- /dev/null
+++++ b/client/.gitignore
++@@ -0,0 +1,11 @@
+++local_broker.txt
+++public_broker.txt
+++../hw1.patch
+++../cscope.po.out
+++../cscope.out
+++../cscope.in.out
+++timed_sub
+++timed_pub
+++greet_server
+++greet_client
+++.greet_server.c.swp
++diff --git a/client/CDF.py b/client/CDF.py
++new file mode 100644
++index 00000000..5459682d
++--- /dev/null
+++++ b/client/CDF.py
++@@ -0,0 +1,42 @@
+++import matplotlib.pyplot as plt
+++import numpy as np
+++
+++def load_data(filename):
+++    data = []
+++    with open(filename, 'r') as file:
+++        for line in file:
+++            if 'latency' in line:
+++                latency_value = line.replace("latency = ", "").replace(" μ", "").strip()
+++                data.append(float(latency_value))
+++    return data
+++
+++local_data = load_data('local_broker.txt')
+++public_data = load_data('public_broker.txt')
+++
+++# local's CDF
+++local_cdf_x = np.sort(local_data)
+++local_cdf_y = (np.arange(len(local_cdf_x)) + 1) / len(local_cdf_x)
+++
+++# broker's CDF
+++public_cdf_x = np.sort(public_data)
+++public_cdf_y = (np.arange(len(public_cdf_x)) + 1) / len(public_cdf_x)
+++
+++fig1, ax1 = plt.subplots(layout='constrained')
+++ax1.plot(local_cdf_x, local_cdf_y, marker='.', color='seagreen')
+++ax1.set_ylim(0, 1.05)
+++ax1.set_xlabel('Latency (microseconds)')
+++ax1.set_ylabel('CDF')
+++ax1.set_title('Local Broker')
+++ax1.ticklabel_format(style='plain')
+++plt.savefig("CDF_plot_local.png")
+++plt.show()
+++
+++fig2, ax2 = plt.subplots(layout='constrained')
+++ax2.plot(public_cdf_x, public_cdf_y, marker='x', color='salmon')
+++ax2.set_ylim(0, 1.05)
+++ax2.set_xlabel('Latency (microseconds)')
+++ax2.set_ylabel('CDF')
+++ax2.set_title('Public Broker')
+++ax2.ticklabel_format(style='plain')
+++plt.savefig("CDF_plot_public.png")
+++plt.show()
++\ No newline at end of file
++diff --git a/client/Makefile b/client/Makefile
++index cc406b7d..39cbc455 100644
++--- a/client/Makefile
+++++ b/client/Makefile
++@@ -14,12 +14,18 @@ ALL_DEPS:= static_pub static_sub static_rr
++ endif
++ endif
++
++-all : ${ALL_DEPS}
+++all : ${ALL_DEPS} greet_server greet_client
++
++static : static_pub static_sub static_rr
++	# This makes mosquitto_pub/sub/rr versions that are statically linked with
++	# libmosquitto only.
++
+++greet_server: greet_server.c
+++	gcc greet_server.c -o greet_server -lmosquitto
+++
+++greet_client: greet_client.c
+++	gcc greet_client.c -o greet_client -lmosquitto
+++
++static_pub : pub_client.o pub_shared.o client_props.o client_shared.o ../lib/libmosquitto.a
++	${CROSS_COMPILE}${CC} $^ -o mosquitto_pub ${CLIENT_LDFLAGS} ${STATIC_LIB_DEPS} ${CLIENT_STATIC_LDADD}
++
++diff --git a/client/greet_client.c b/client/greet_client.c
++new file mode 100644
++index 00000000..106dd2eb
++--- /dev/null
+++++ b/client/greet_client.c
++@@ -0,0 +1,36 @@
+++#include <stdio.h>
+++#include <string.h>
+++#include <mosquitto.h>
+++
+++bool msg_received = false;
+++
+++void message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *msg) {
+++    if (msg->payloadlen) {
+++        printf("%s\n", (char *)msg->payload);
+++        msg_received = true;
+++    }
+++}
+++
+++int main(int argc, char *argv[])
+++{
+++    /* Check the user provided a name as a command-line */
+++    if (argc < 2) {
+++        printf("Usage: %s <name>\n", argv[0]);
+++        return 1;
+++    }
+++    mosquitto_lib_init();
+++    struct mosquitto *mosq = mosquitto_new("m11207521", true, NULL);
+++    mosquitto_message_callback_set(mosq, message);
+++    /* Connect local server */
+++    mosquitto_connect(mosq, "localhost", 1883, 60);
+++    /* Subscrible to the 'fromServer' topic */
+++    mosquitto_subscribe(mosq, NULL, "fromServer", 0);
+++    mosquitto_publish(mosq, NULL, "toServer", strlen(argv[1]), argv[1], 0, false);
+++
+++    while (!msg_received)
+++        mosquitto_loop(mosq, -1, 1);
+++
+++    mosquitto_destroy(mosq);
+++    mosquitto_lib_cleanup();
+++    return 0;
+++}
++\ No newline at end of file
++diff --git a/client/greet_server.c b/client/greet_server.c
++new file mode 100644
++index 00000000..4df79414
++--- /dev/null
+++++ b/client/greet_server.c
++@@ -0,0 +1,38 @@
+++#include <stdio.h>
+++#include <string.h>
+++#include <mosquitto.h>
+++
+++/* Ca
+\ No newline at end of file
+diff --git a/client/pub_client.c b/client/pub_client.c
+index 7822e27f..4d861731 100644
+--- a/client/pub_client.c
++++ b/client/pub_client.c
+@@ -50,6 +50,12 @@ static bool ready_for_repeat = false;
+ static volatile int status = STATUS_CONNECTING;
+ static int connack_result = 0;
+
++/*----------PUBACK Implementation-----------*/
++struct timeval publish_timestamp;
++struct timeval puback_timestamp;
++long time_interval;
++/*------------------------------------------*/
++
+ #ifdef WIN32
+ static uint64_t next_publish_tv;
+
+@@ -100,6 +106,33 @@ static int check_repeat_time(void)
+ }
+ #endif
+
++void timestamp(struct timeval *tv) {
++	if (gettimeofday(tv, NULL)) {
++		perror("gettimeofday");
++		exit(EXIT_FAILURE);
++	}
++}
++
++void my_puback_callback(struct mosquitto *mosq, void *userdata, int mid) {
++    (void)mosq,
++    (void)userdata;
++    (void)mid;
++
++    int *qos = (int *)userdata;
++
++    if (*qos == 1) {
++        timestamp(&puback_timestamp);
++        time_interval = (puback_timestamp.tv_sec * 1000000 + puback_timestamp.tv_usec) - (publish_timestamp.tv_sec * 1000000 + publish_timestamp.tv_usec);
++
++        printf("PUBACK timestamp: %ld.%06ld seconds\n", puback_timestamp.tv_sec, puback_timestamp.tv_usec);
++        printf("latency = %ld \u03BC\n", time_interval);
++    }
++}
++
++void mosquitto_puback_callback_set(struct mosquitto *mosq, void (*on_puback)(struct mosquitto *, void *, int)) {
++	mosquitto_publish_callback_set(mosq, on_puback);
++}
++
+ void my_disconnect_callback(struct mosquitto *mosq, void *obj, int rc, const mosquitto_property *properties)
+ {
+ 	UNUSED(mosq);
+@@ -518,6 +551,8 @@ int main(int argc, char *argv[])
+ 	int rc;
+
+ 	mosquitto_lib_init();
++	/* setting qos = 1 */
++	int qos = 1;
+
+ 	if(pub_shared_init()) return 1;
+
+@@ -564,7 +599,11 @@ int main(int argc, char *argv[])
+ 		goto cleanup;
+ 	}
+
+-	mosq = mosquitto_new(cfg.id, cfg.clean_session, NULL);
++    /* According to configuration or commend-line to setup Qos */
++    qos = cfg.qos;
++
++    /* mosq = mosquitto_new(cfg.id, cfg.clean_session, NULL); */
++    mosq = mosquitto_new(cfg.id, cfg.clean_session, &qos);
+ 	if(!mosq){
+ 		switch(errno){
+ 			case ENOMEM:
+@@ -582,7 +621,12 @@ int main(int argc, char *argv[])
+ 	mosquitto_connect_v5_callback_set(mosq, my_connect_callback);
+ 	mosquitto_disconnect_v5_callback_set(mosq, my_disconnect_callback);
+ 	mosquitto_publish_v5_callback_set(mosq, my_publish_callback);
++    /* Setting PUBACK callback funciton */
++    mosquitto_puback_callback_set(mosq, my_puback_callback);
+
++    timestamp(&publish_timestamp);
++    printf("Publish timestamp: %ld.%06ld seconds\n", publish_timestamp.tv_sec, publish_timestamp.tv_usec);
++    mosquitto_publish_v5(mosq, NULL, "test/topic", strlen("message"), "message", qos, false, NULL);
+ 	if(client_opts_set(mosq, &cfg)){
+ 		goto cleanup;
+ 	}
+diff --git a/client/send_50_message.sh b/client/send_50_message.sh
+new file mode 100755
+index 00000000..45e9aea3
+--- /dev/null
++++ b/client/send_50_message.sh
+@@ -0,0 +1,20 @@
++#!/bin/bash
++
++> local_broker.txt
++> public_broker.txt
++
++for i in {1..50}
++do
++	latency=$(./mosquitto_pub  -t "test/topic" -m "local message $i" -q 1)
++	echo "$latency"
++	echo "$latency" >> local_broker.txt
++done
++
++for i in {1..50}
++do
++	latency=$(./mosquitto_pub -h test.mosquitto.org -t "test/topic" -m "public message $i" -q 1)
++	echo "$latency"
++	echo "$latency" >> public_broker.txt
++done
++
++echo "Finished 50 message publishing of local and public brokers."
+\ No newline at end of file
