@@ -8,9 +8,9 @@
 1.1 瀏覽 [test.mosquitto.org](https://test.mosquitto.org/) 網站並了解使用資訊。
 
 1.2 使用以下指令連接至公開 broker 並訂閱所有訊息：
-   ```bash
-   mosquitto_sub -h test.mosquitto.org -p 1884 -t "#" -v
-   ```
+```bash
+mosquitto_sub -h test.mosquitto.org -p 1884 -t "#" -v
+```
 1.3 截圖顯示的主題名稱及訊息內容，並將此截圖保存為證明。
 
 ## 2 修改 mosquitto_sub 以計算訊息數量
