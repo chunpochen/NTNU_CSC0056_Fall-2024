@@ -26,15 +26,16 @@ printf ("%d ", total_count++);
 make
 ```
 
-### 產生補丁檔案
+### 3 產生補丁檔案
 1. 使用以下指令創建補丁檔，記錄對 `sub_client.c` 的修改：
 ```
 git diff sub_client.c > hw1.patch
 ```
+
 2. 使用 `cat` 查看補丁內容，確保記錄無誤：
 ```
 cat hw1.patch
 ```
 
-#### 將產生的 `hw1.patch` 檔案作為作業提交。
-#### 備註: 請確保所提交的補丁檔可以成功應用在指定的 [Mosquitto](https://github.com/wangc86/mosquitto) 程式庫。
+##### 將產生的 `hw1.patch` 檔案作為作業提交。
+##### 備註: 請確保所提交的補丁檔可以成功應用在指定的 [Mosquitto](https://github.com/wangc86/mosquitto) 程式庫。
