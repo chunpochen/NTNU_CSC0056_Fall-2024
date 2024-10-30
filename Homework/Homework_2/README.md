@@ -27,3 +27,5 @@
 - 一條為使用公共 broker (`test.mosquitto.org`) 的情況。
 
 #### 提示：參考第 4 週課程內容中的 CDF 繪圖技術來完成此部分。
+
+#### [Solution](https://hackmd.io/PIrM41rJQkegsCExdkQL0A)
