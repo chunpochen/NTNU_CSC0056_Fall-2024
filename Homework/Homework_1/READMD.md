@@ -39,4 +39,4 @@ cat hw1.patch
 ```
 
 #### 將產生的 `hw1.patch` 檔案作為作業提交。
-#### 備註: 請確保所提交的補丁檔可以成功應用在指定的 Mosquitto 程式庫（https://github.com/wangc86/mosquitto）。
+#### 備註: 請確保所提交的補丁檔可以成功應用在指定的 [Mosquitto](https://github.com/wangc86/mosquitto) 程式庫。
