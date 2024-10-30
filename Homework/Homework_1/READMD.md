@@ -4,7 +4,6 @@
 
 ## 1 監聽 Mosquitto 公開 Broker
 使用 `mosquitto_sub` 程式監聽 Mosquitto 公開 broker (`https://test.mosquitto.org/`) 上的所有訊息，並截圖顯示所獲得的訊息。
-### 步驟
 1. 瀏覽 [test.mosquitto.org](https://test.mosquitto.org/) 網站並了解使用資訊。
 2. 使用以下指令連接至公開 broker 並訂閱所有訊息：
 ```bash
@@ -13,7 +12,7 @@ mosquitto_sub -h test.mosquitto.org -p 1884 -t "#" -v
 3. 截圖顯示的主題名稱及訊息內容，並將此截圖保存為證明。
 
 ## 2 修改 mosquitto_sub 以計算訊息數量
-### 步驟
+
 1. 在 `sub_client.c` 中新增一個 total_count 的全域變數：
 ```
 int total_count = 0;
