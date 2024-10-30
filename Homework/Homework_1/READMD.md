@@ -2,7 +2,7 @@
 
 此部分包含兩個練習，為了熟悉 Mosquitto 的使用和 Git 的基本操作。
 
-## 1 監聽 Mosquitto 公開 Broker
+## 1 監聽 Mosquitto Public Broker
 使用 `mosquitto_sub` 程式監聽 Mosquitto 公開 broker (`https://test.mosquitto.org/`) 上的所有訊息，並截圖顯示所獲得的訊息。
 1. 瀏覽 [test.mosquitto.org](https://test.mosquitto.org/) 網站並了解使用資訊。
 2. 使用以下指令連接至公開 broker 並訂閱所有訊息：
