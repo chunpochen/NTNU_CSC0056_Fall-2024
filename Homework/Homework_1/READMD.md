@@ -3,9 +3,7 @@
 此部分包含兩個練習，為了熟悉 Mosquitto 的使用和 Git 的基本操作。
 
 ## 1 監聽 Mosquitto 公開 Broker
-
 使用 `mosquitto_sub` 程式監聽 Mosquitto 公開 broker (`https://test.mosquitto.org/`) 上的所有訊息，並截圖顯示所獲得的訊息。
-
 ### 步驟
 1.1 瀏覽 [test.mosquitto.org](https://test.mosquitto.org/) 網站並了解使用資訊。
 1.2 使用以下指令連接至公開 broker 並訂閱所有訊息：
@@ -15,9 +13,7 @@
 1.3 截圖顯示的主題名稱及訊息內容，並將此截圖保存為證明。
 
 ## 2 修改 mosquitto_sub 以計算訊息數量
-
 ### 步驟
-
 2.1 在 `sub_client.c` 中新增一個 total_count 的全域變數：
 ```
 int total_count = 0;
@@ -42,4 +38,4 @@ cat hw1.patch
 ```
 
 #### 將產生的 `hw1.patch` 檔案作為作業提交。
-#### 備註: 請確保所提交的補丁檔可以成功應用在指定的 Mosquitto 程式碼庫（https://github.com/wangc86/mosquitto）。
+#### 備註: 請確保所提交的補丁檔可以成功應用在指定的 Mosquitto 程式庫（https://github.com/wangc86/mosquitto）。
